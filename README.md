@@ -23,11 +23,11 @@ We define a comprehensive artifact taxonomy comprising 3 levels and 7 specific c
 
 ## 🚀 Key Features
 
-*   **Pixel-level Grounding**: Provides 18,000+ artifact instances across 3,000+ annotated samples with precise polygon masks.
+*   **Pixel-level Grounding**: Provides 18,000+ artifact instances across 3,000+ annotated samples with categorization and polygon mask localization.
 *   **Diverse Generators**: Collects 52,000 fake images from 13 text-to-image models, which covers:
     * Different architectures: diffusion UNets, diffusion Transformers, auto-regressive models
     * Popular, up-to-date models: e.g., SD 3.5, FLUX.1-dev, and PixArt-α
-    * Community fine-tuned models focusing on realism (from [Civitai](https://civitai.com/)): e.g., [SDXL-realism-engine](https://civitai.com/models/152525/realism-engine-sdxl), [SD3.5L-iPhonePhoto](https://civitai.com/models/738556?modelVersionId=987578)
+    * Community fine-tuned models focusing on realism (from [Civitai](https://civitai.com/)): e.g., [SD3.5L-iPhonePhoto](https://civitai.com/models/738556?modelVersionId=987578)
 *   **Semantic Alignment**: Features paired real and fake images with consistent semantics for unbiased interpretability assessment.
 *   **Multi-level Analysis**: Enables systematic evaluation of model reliance on human-interpretable cues vs. opaque statistical features.
 
