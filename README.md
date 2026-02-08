@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://arxiv.org/abs/2601.19430"><img src="https://img.shields.io/badge/arXiv-2601.19430-b31b1b.svg" alt="arXiv"></a>
-  <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Coming%20Soon-yellow" alt="Hugging Face">
+  <a href="https://huggingface.co/datasets/Coxy7/X-AIGD"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Dataset-yellow" alt="Hugging Face"></a>
 </p>
 
 This repository contains the dataset and code for **X-AIGD**, a fine-grained benchmark designed for **eXplainable AI-Generated image Detection**. X-AIGD provides pixel-level human annotations of perceptual artifacts in AI-generated images, spanning low-level distortions, high-level semantics, and cognitive-level counterfactuals, aiming to advance robust and explainable AI-generated image detection methods. 
@@ -37,6 +37,7 @@ We define a comprehensive artifact taxonomy comprising 3 levels and 7 specific c
 We are currently preparing the dataset and code for public release. Stay tuned!
 
 - [WIP] **X-AIGD dataset**: Pixel-level annotated subset and full image collection.
+  - The core labeled data have been released on [Hugging Face](https://huggingface.co/datasets/Coxy7/X-AIGD)
 - [Planned] **Dataset-related scripts**: Scripts for dataset processing, metric calculation, etc.
 - [Planned] **Experiment code**: Code for model training and evaluation.
 
