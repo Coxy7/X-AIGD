@@ -37,8 +37,9 @@ We define a comprehensive artifact taxonomy comprising 3 levels and 7 specific c
 We are currently preparing the dataset and code for public release. Stay tuned!
 
 - [WIP] **X-AIGD dataset**: Pixel-level annotated subset and full image collection.
-  - The core labeled data have been released on [Hugging Face](https://huggingface.co/datasets/Coxy7/X-AIGD)
-- [Planned] **Dataset-related scripts**: Scripts for dataset processing, metric calculation, etc.
+  - All images and annotations have been released on [Hugging Face](https://huggingface.co/datasets/Coxy7/X-AIGD)
+- [WIP] **Dataset-related scripts**: Scripts for dataset processing, metric calculation, etc.
+  - We are preparing the metric calculation code and dataset viewer and will release them soon.
 - [Planned] **Experiment code**: Code for model training and evaluation.
 
 
