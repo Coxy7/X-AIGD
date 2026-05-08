@@ -32,15 +32,28 @@ We define a comprehensive artifact taxonomy comprising 3 levels and 7 specific c
 *   **Multi-level Analysis**: Enables systematic evaluation of model reliance on human-interpretable cues vs. opaque statistical features.
 
 
+## 🔍 Dataset Viewer
+
+We provide a lightweight interactive Streamlit app for exploring X-AIGD images, artifact categories, polygon annotations, and sample metadata. The viewer supports:
+
+- Browse samples image by image with artifact overlay visualization
+- Filter by artifact category and switch between data splits
+- Keyboard shortcuts for efficient navigation and filtering
+- Jump to specific samples by generator and UID
+
+For setup and usage instructions, see [tools/dataset_viewer/README.md](tools/dataset_viewer/README.md).
+
+
 ## 📅 Current Status & TODO
 
 We are currently preparing the dataset and code for public release. Stay tuned!
 
-- [WIP] **X-AIGD dataset**: Pixel-level annotated subset and full image collection.
-  - All images and annotations have been released on [Hugging Face](https://huggingface.co/datasets/Coxy7/X-AIGD)
-- [WIP] **Dataset-related scripts**: Scripts for dataset processing, metric calculation, etc.
-  - We are preparing the metric calculation code and dataset viewer and will release them soon.
-- [Planned] **Experiment code**: Code for model training and evaluation.
+- **X-AIGD dataset**: Pixel-level annotated subset and full image collection.
+  - All images and artifact annotations have been released on [Hugging Face](https://huggingface.co/datasets/Coxy7/X-AIGD)
+- **Dataset-related scripts**: Scripts for dataset processing, metric calculation, etc.
+  - Dataset viewer released: [tools/dataset_viewer](tools/dataset_viewer)
+  - [WIP] Metric calculation code
+- **Experiment code**: Code for model training and evaluation. (TODO)
 
 
 ## 📝 Citation
