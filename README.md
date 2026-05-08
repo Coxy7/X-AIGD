@@ -1,4 +1,4 @@
-# Unveiling Perceptual Artifacts: A Fine-Grained Benchmark for Interpretable AI-Generated Image Detection
+# Unveiling Perceptual Artifacts: A Fine-Grained Benchmark for Interpretable AI-Generated Image Detection (ICLR 2026)
 
 <p align="center">
   <a href="https://arxiv.org/abs/2601.19430"><img src="https://img.shields.io/badge/arXiv-2601.19430-b31b1b.svg" alt="arXiv"></a>
@@ -61,10 +61,10 @@ We are currently preparing the dataset and code for public release. Stay tuned!
 If you find our work useful in your research, please consider citing:
 
 ```bibtex
-@article{xiao2026unveiling,
+@inproceedings{xiao2026unveiling,
   title={Unveiling Perceptual Artifacts: A Fine-Grained Benchmark for Interpretable AI-Generated Image Detection},
   author={Xiao, Yao and Chen, Weiyan and Chen, Jiahao and Cao, Zijie and Deng, Weijian and Yang, Binbin and Dong, Ziyi and Ji, Xiangyang and Ke, Wei and Wei, Pengxu and Lin, Liang},
-  journal={arXiv preprint arXiv:2601.19430},
+  booktitle={The Fourteenth International Conference on Learning Representations},
   year={2026}
 }
 ```
