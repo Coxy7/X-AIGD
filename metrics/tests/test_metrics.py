@@ -1,0 +1,190 @@
+from __future__ import annotations
+
+import csv
+import tempfile
+import unittest
+from pathlib import Path
+
+import cv2
+import numpy as np
+
+from metrics.data import ArtifactLabel, ImageRecord, normalize_record
+from metrics.instance import (
+    PredictedBox,
+    evaluate_instance_predictions,
+    load_instance_predictions,
+    match_box_to_mask,
+)
+from metrics.masks import build_gt_mask, transform_mask, transformed_shape
+from metrics.pixel import evaluate_category_agnostic
+from metrics.predictions import union_prediction_dir
+
+
+def make_record(
+    *,
+    labels: tuple[ArtifactLabel, ...],
+    width: int = 8,
+    height: int = 8,
+    generator: str = "gen",
+    uid: str = "uid",
+) -> ImageRecord:
+    return ImageRecord(generator=generator, uid=uid, width=width, height=height, labels=labels)
+
+
+class MaskTests(unittest.TestCase):
+    def test_gt_mask_uses_cv2_fillpoly_with_int32_truncation(self) -> None:
+        record = make_record(
+            labels=(
+                ArtifactLabel(
+                    category="low-level-edge_shape",
+                    points=((1.9, 1.9), (5.9, 1.9), (1.9, 5.9)),
+                ),
+            )
+        )
+
+        mask, stats = build_gt_mask(record, {"low-level-edge_shape"})
+        expected = np.zeros((8, 8), dtype=np.uint8)
+        cv2.fillPoly(expected, [np.array([(1, 1), (5, 1), (1, 5)], dtype=np.int32)], 255)
+
+        self.assertEqual(stats.skipped_malformed_polygons, 0)
+        np.testing.assert_array_equal(mask, expected)
+
+    def test_nearest_transform_keeps_binary_values(self) -> None:
+        mask = np.zeros((8, 8), dtype=np.uint8)
+        mask[2:6, 2:6] = 255
+
+        transformed = transform_mask(mask, "resize256-crop224")
+
+        self.assertEqual(transformed.shape, (224, 224))
+        self.assertEqual(set(np.unique(transformed).tolist()), {0, 255})
+
+    def test_transformed_shape_matches_transform(self) -> None:
+        record = make_record(labels=(), width=10, height=6)
+
+        self.assertEqual(transformed_shape(record, "keep-original-size"), (6, 10))
+        self.assertEqual(transformed_shape(record, "resize256-crop224"), (224, 224))
+        self.assertEqual(transformed_shape(record, "resize518-crop518"), (518, 518))
+
+    def test_unknown_dataset_category_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            normalize_record(
+                {
+                    "generator": "gen",
+                    "uid": "uid",
+                    "width": 8,
+                    "height": 8,
+                    "labels": [
+                        {"label": "unknown-category", "points": [[1, 1], [2, 1], [1, 2]]}
+                    ],
+                }
+            )
+
+
+class PredictionTests(unittest.TestCase):
+    def test_missing_prediction_dir_is_zero_prediction(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            mask, is_zero = union_prediction_dir(Path(tmpdir) / "missing", (4, 4))
+
+        self.assertTrue(is_zero)
+        self.assertEqual(int(mask.sum()), 0)
+
+    def test_prediction_dimension_mismatch_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pred_dir = Path(tmpdir)
+            cv2.imwrite(str(pred_dir / "mask.png"), np.zeros((5, 5), dtype=np.uint8))
+
+            with self.assertRaises(ValueError):
+                union_prediction_dir(pred_dir, (4, 4))
+
+    def test_pixel_metric_counts_tiny_masks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            pred_dir = root / "gen" / "uid"
+            pred_dir.mkdir(parents=True)
+            pred = np.zeros((8, 8), dtype=np.uint8)
+            pred[1:6, 1:6] = 255
+            cv2.imwrite(str(pred_dir / "mask.png"), pred)
+            record = make_record(
+                labels=(
+                    ArtifactLabel(
+                        category="low-level-edge_shape",
+                        points=((1, 1), (3, 1), (3, 3), (1, 3)),
+                    ),
+                )
+            )
+
+            row = evaluate_category_agnostic(
+                [record],
+                root,
+                transform="keep-original-size",
+            )
+
+        self.assertEqual(row["evaluated_images"], 1)
+        self.assertEqual(row["zero_prediction_images"], 0)
+        self.assertGreater(row["TP_255"], 0)
+        self.assertGreater(row["FP_255"], 0)
+
+
+class InstanceTests(unittest.TestCase):
+    def test_instance_csv_rejects_unknown_category(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = Path(tmpdir) / "pred.csv"
+            with csv_path.open("w", newline="", encoding="utf-8") as csv_file:
+                writer = csv.DictWriter(
+                    csv_file,
+                    fieldnames=["generator", "uid", "category", "x_min", "y_min", "x_max", "y_max"],
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "generator": "gen",
+                        "uid": "uid",
+                        "category": "low-level-text",
+                        "x_min": 0,
+                        "y_min": 0,
+                        "x_max": 1,
+                        "y_max": 1,
+                    }
+                )
+
+            with self.assertRaises(ValueError):
+                load_instance_predictions(csv_path)
+
+    def test_box_match_uses_intersection_over_prediction_area(self) -> None:
+        gt_instance_mask = np.zeros((10, 10), dtype=np.uint8)
+        gt_instance_mask[1:4, 1:4] = 255
+        box = PredictedBox("gen", "uid", "low-level-edge_shape", 1, 1, 5, 5)
+
+        self.assertTrue(
+            match_box_to_mask(gt_instance_mask, box, 10, 10, overlap_threshold=0.5)
+        )
+        self.assertFalse(
+            match_box_to_mask(gt_instance_mask, box, 10, 10, overlap_threshold=0.6)
+        )
+
+    def test_missing_instance_rows_are_zero_predictions(self) -> None:
+        record = make_record(
+            labels=(
+                ArtifactLabel(
+                    category="low-level-edge_shape",
+                    points=((1, 1), (4, 1), (4, 4), (1, 4)),
+                ),
+            )
+        )
+
+        per_generator_rows, overall_rows = evaluate_instance_predictions([record], {})
+
+        edge_specific = [
+            row for row in per_generator_rows if row["category"] == "low-level-edge_shape"
+        ][0]
+        edge_overall = [
+            row for row in overall_rows if row["category"] == "low-level-edge_shape"
+        ][0]
+        self.assertEqual(edge_specific["zero_prediction_images"], 1)
+        self.assertEqual(edge_specific["FP"], 0)
+        self.assertGreater(edge_specific["FN"], 0)
+        self.assertEqual(edge_overall["FN"], edge_specific["FN"])
+
+
+if __name__ == "__main__":
+    unittest.main()
