@@ -12,6 +12,7 @@ def read_binary_mask(
     *,
     threshold: int = 127,
 ) -> np.ndarray:
+    validate_prediction_threshold(threshold)
     mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
     if mask is None:
         raise ValueError(f"Failed to read prediction mask: {mask_path}")
@@ -28,6 +29,7 @@ def union_prediction_dir(
     *,
     threshold: int = 127,
 ) -> tuple[np.ndarray, bool]:
+    validate_prediction_threshold(threshold)
     total_mask = np.zeros(expected_shape, dtype=np.uint8)
     if not prediction_dir.exists():
         return total_mask, True
@@ -45,3 +47,7 @@ def union_prediction_dir(
         )
     return total_mask, not bool(np.any(total_mask))
 
+
+def validate_prediction_threshold(threshold: int) -> None:
+    if not 0 <= threshold <= 255:
+        raise ValueError(f"prediction threshold must be between 0 and 255, got {threshold}")

@@ -174,10 +174,10 @@ def compute_fine_grained_counts(
     prediction_threshold: int = 127,
 ) -> dict[str, PixelCounts]:
     category_counts = {category: PixelCounts() for category in CATEGORIES}
-    for category in CATEGORIES:
-        counts = category_counts[category]
-        for record in records:
-            expected_shape = transformed_shape(record, transform)
+    for record in records:
+        expected_shape = transformed_shape(record, transform)
+        for category in CATEGORIES:
+            counts = category_counts[category]
             pred_dir = prediction_root / record.generator / category / record.uid
             pred_mask, is_zero_prediction = union_prediction_dir(
                 pred_dir,

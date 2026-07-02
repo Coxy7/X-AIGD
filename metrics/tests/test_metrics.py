@@ -112,6 +112,15 @@ class PredictionTests(unittest.TestCase):
         self.assertTrue(is_zero)
         self.assertEqual(int(mask.sum()), 0)
 
+    def test_prediction_threshold_rejects_out_of_range_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pred_dir = Path(tmpdir) / "missing"
+
+            with self.assertRaises(ValueError):
+                union_prediction_dir(pred_dir, (4, 4), threshold=-1)
+            with self.assertRaises(ValueError):
+                union_prediction_dir(pred_dir, (4, 4), threshold=256)
+
     def test_prediction_dimension_mismatch_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             pred_dir = Path(tmpdir)
