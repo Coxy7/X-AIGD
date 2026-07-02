@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import cv2
 import numpy as np
 
@@ -9,33 +7,29 @@ from metrics.constants import CATEGORY_SET, TRANSFORMS
 from metrics.data import ImageRecord
 
 
-@dataclass(frozen=True)
-class MaskBuildStats:
-    skipped_malformed_polygons: int = 0
-
-
 def build_gt_mask(
     record: ImageRecord,
     categories: set[str],
-) -> tuple[np.ndarray, MaskBuildStats]:
+) -> np.ndarray:
     unknown_categories = categories - CATEGORY_SET
     if unknown_categories:
         raise ValueError(f"Unknown requested categories: {sorted(unknown_categories)}")
 
     mask = np.zeros((record.height, record.width), dtype=np.uint8)
-    skipped = 0
     for label in record.labels:
         if label.category not in categories:
             continue
         if len(label.points) < 3:
-            skipped += 1
-            continue
+            raise ValueError(
+                f"Malformed polygon for {record.generator}/{record.uid} "
+                f"in category {label.category!r}: expected at least 3 points, got {len(label.points)}"
+            )
         points = np.array(label.points, dtype=np.int32)
         points[:, 0] = np.clip(points[:, 0], 0, record.width - 1)
         points[:, 1] = np.clip(points[:, 1], 0, record.height - 1)
         cv2.fillPoly(mask, [points], 255)
 
-    return mask, MaskBuildStats(skipped_malformed_polygons=skipped)
+    return mask
 
 
 def transformed_shape(record: ImageRecord, transform: str) -> tuple[int, int]:

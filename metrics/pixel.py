@@ -18,7 +18,6 @@ class PixelCounts:
     false_negative: int = 0
     evaluated_images: int = 0
     zero_prediction_images: int = 0
-    skipped_malformed_polygons: int = 0
 
     def add_masks(self, pred_mask: np.ndarray, gt_mask: np.ndarray) -> None:
         self.true_positive += int(np.sum((pred_mask == 255) & (gt_mask == 255)))
@@ -43,7 +42,6 @@ class PixelCounts:
             "PixF1": f1,
             "evaluated_images": self.evaluated_images,
             "zero_prediction_images": self.zero_prediction_images,
-            "skipped_malformed_polygons": self.skipped_malformed_polygons,
         }
         return row
 
@@ -69,9 +67,8 @@ def evaluate_category_agnostic(
             expected_shape,
             threshold=prediction_threshold,
         )
-        gt_mask, stats = build_gt_mask(record, category_set)
+        gt_mask = build_gt_mask(record, category_set)
         gt_mask = transform_mask(gt_mask, transform)
-        counts.skipped_malformed_polygons += stats.skipped_malformed_polygons
         counts.zero_prediction_images += int(is_zero_prediction)
         counts.add_masks(pred_mask, gt_mask)
     return counts.to_metrics_row(task="category-agnostic")
@@ -95,9 +92,8 @@ def evaluate_fine_grained(
                 expected_shape,
                 threshold=prediction_threshold,
             )
-            gt_mask, stats = build_gt_mask(record, {category})
+            gt_mask = build_gt_mask(record, {category})
             gt_mask = transform_mask(gt_mask, transform)
-            counts.skipped_malformed_polygons += stats.skipped_malformed_polygons
             counts.zero_prediction_images += int(is_zero_prediction)
             counts.add_masks(pred_mask, gt_mask)
         rows.append(counts.to_metrics_row(task="fine-grained", category=category))

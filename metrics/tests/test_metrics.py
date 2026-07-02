@@ -42,12 +42,24 @@ class MaskTests(unittest.TestCase):
             )
         )
 
-        mask, stats = build_gt_mask(record, {"low-level-edge_shape"})
+        mask = build_gt_mask(record, {"low-level-edge_shape"})
         expected = np.zeros((8, 8), dtype=np.uint8)
         cv2.fillPoly(expected, [np.array([(1, 1), (5, 1), (1, 5)], dtype=np.int32)], 255)
 
-        self.assertEqual(stats.skipped_malformed_polygons, 0)
         np.testing.assert_array_equal(mask, expected)
+
+    def test_gt_mask_rejects_malformed_polygon(self) -> None:
+        record = make_record(
+            labels=(
+                ArtifactLabel(
+                    category="low-level-edge_shape",
+                    points=((1, 1), (2, 2)),
+                ),
+            )
+        )
+
+        with self.assertRaises(ValueError):
+            build_gt_mask(record, {"low-level-edge_shape"})
 
     def test_nearest_transform_keeps_binary_values(self) -> None:
         mask = np.zeros((8, 8), dtype=np.uint8)
@@ -136,7 +148,6 @@ class PredictionTests(unittest.TestCase):
                 "PixF1",
                 "evaluated_images",
                 "zero_prediction_images",
-                "skipped_malformed_polygons",
             },
         )
 
@@ -238,7 +249,6 @@ class InstanceTests(unittest.TestCase):
                 "evaluated_images",
                 "zero_prediction_images",
                 "invalid_prediction_boxes",
-                "skipped_malformed_polygons",
             },
         )
 

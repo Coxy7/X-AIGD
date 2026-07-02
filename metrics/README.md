@@ -20,7 +20,7 @@ Ground-truth labels are read directly from the Hugging Face dataset rows:
 
 Unknown categories are treated as errors.
 
-Ground-truth masks are generated in memory. Polygon points are converted with `np.array(points, dtype=np.int32)`, then rasterized with `cv2.fillPoly(..., 255)`.  This means fractional coordinates are truncated before rasterization. Malformed polygons with fewer than three points are skipped and counted in the output diagnostics.
+Ground-truth masks are generated in memory. Polygon points are converted with `np.array(points, dtype=np.int32)`, then rasterized with `cv2.fillPoly(..., 255)`. This means fractional coordinates are truncated before rasterization. Polygons with fewer than three points are treated as annotation errors.
 
 ## Pixel-Level Metrics
 
@@ -82,7 +82,7 @@ Pixel-level evaluation reports artifact-region metrics as fractions in `[0, 1]`.
 
 ```text
 task, category, IoU, PixP, PixR, PixF1,
-evaluated_images, zero_prediction_images, skipped_malformed_polygons
+evaluated_images, zero_prediction_images
 ```
 
 Explanation of the metrics:
@@ -162,5 +162,5 @@ Instance-level evaluation output includes per-generator rows and overall rows. O
 
 ```text
 generator, category, P@0.5, R@0.5, F1@0.5, TP, FP, FN,
-evaluated_images, zero_prediction_images, invalid_prediction_boxes, skipped_malformed_polygons
+evaluated_images, zero_prediction_images, invalid_prediction_boxes
 ```

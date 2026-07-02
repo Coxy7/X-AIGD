@@ -32,7 +32,6 @@ class InstanceCounts:
     evaluated_images: int = 0
     zero_prediction_images: int = 0
     invalid_prediction_boxes: int = 0
-    skipped_malformed_polygons: int = 0
 
     def to_row(
         self,
@@ -57,7 +56,6 @@ class InstanceCounts:
             "evaluated_images": self.evaluated_images,
             "zero_prediction_images": self.zero_prediction_images,
             "invalid_prediction_boxes": self.invalid_prediction_boxes,
-            "skipped_malformed_polygons": self.skipped_malformed_polygons,
         }
 
 
@@ -154,8 +152,7 @@ def evaluate_instance_record(
     overlap_threshold: float,
 ) -> InstanceCounts:
     counts = InstanceCounts(evaluated_images=1, zero_prediction_images=int(not pred_boxes))
-    composite_mask, stats = build_gt_mask(record, {category})
-    counts.skipped_malformed_polygons = stats.skipped_malformed_polygons
+    composite_mask = build_gt_mask(record, {category})
 
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
     dilated_mask = cv2.dilate(composite_mask, kernel, iterations=1)
@@ -227,4 +224,3 @@ def merge_instance_counts(target: InstanceCounts, source: InstanceCounts) -> Non
     target.evaluated_images += source.evaluated_images
     target.zero_prediction_images += source.zero_prediction_images
     target.invalid_prediction_boxes += source.invalid_prediction_boxes
-    target.skipped_malformed_polygons += source.skipped_malformed_polygons
