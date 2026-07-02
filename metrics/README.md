@@ -2,6 +2,14 @@
 
 This directory contains metric code for the X-AIGD dataset.
 
+## Prerequisites
+
+The evaluation scripts require the following Python libraries:
+- `opencv-python`
+- `numpy`
+- `pyarrow`
+- `huggingface-hub`
+
 ## Data Source
 
 Ground-truth labels are read directly from the Hugging Face dataset rows:
@@ -21,6 +29,10 @@ Ground-truth labels are read directly from the Hugging Face dataset rows:
 Unknown categories are treated as errors.
 
 Ground-truth masks are generated in memory. Polygon points are converted with `np.array(points, dtype=np.int32)`, then rasterized with `cv2.fillPoly(..., 255)`. This means fractional coordinates are truncated before rasterization. Polygons with fewer than three points are treated as annotation errors.
+
+## Examples
+
+See `metrics/examples/README.md` for runnable category-agnostic pixel, fine-grained pixel, and instance-level examples using the `Coxy7/X-AIGD-demo` dataset.
 
 ## Pixel-Level Metrics
 

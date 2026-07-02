@@ -1,0 +1,2 @@
+task,category,IoU,PixP,PixR,PixF1,evaluated_images,zero_prediction_images
+category-agnostic,all,0.9979989813564467,0.9979989813564467,1.0,0.9989984886567886,25,0
