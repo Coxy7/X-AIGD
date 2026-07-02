@@ -8,7 +8,7 @@ import numpy as np
 
 from metrics.constants import CATEGORIES
 from metrics.data import ImageRecord
-from metrics.masks import build_gt_mask, transform_mask, transformed_shape
+from metrics.masks import MaskTransform, build_gt_mask, transform_mask, transformed_shape
 from metrics.predictions import union_prediction_dir
 
 
@@ -62,7 +62,7 @@ def evaluate_category_agnostic(
     records: list[ImageRecord],
     prediction_root: Path,
     *,
-    transform: str,
+    transform: MaskTransform,
     prediction_threshold: int = 127,
 ) -> dict[str, float | int | str]:
     counts = compute_category_agnostic_counts(
@@ -78,7 +78,7 @@ def evaluate_category_agnostic_per_generator(
     records: list[ImageRecord],
     prediction_root: Path,
     *,
-    transform: str,
+    transform: MaskTransform,
     prediction_threshold: int = 127,
 ) -> list[dict[str, float | int | str]]:
     rows: list[dict[str, float | int | str]] = []
@@ -97,7 +97,7 @@ def compute_category_agnostic_counts(
     records: list[ImageRecord],
     prediction_root: Path,
     *,
-    transform: str,
+    transform: MaskTransform,
     prediction_threshold: int = 127,
 ) -> PixelCounts:
     counts = PixelCounts()
@@ -121,7 +121,7 @@ def evaluate_fine_grained(
     records: list[ImageRecord],
     prediction_root: Path,
     *,
-    transform: str,
+    transform: MaskTransform,
     prediction_threshold: int = 127,
 ) -> list[dict[str, float | int | str]]:
     category_counts = compute_fine_grained_counts(
@@ -144,7 +144,7 @@ def evaluate_fine_grained_per_generator(
     records: list[ImageRecord],
     prediction_root: Path,
     *,
-    transform: str,
+    transform: MaskTransform,
     prediction_threshold: int = 127,
 ) -> list[dict[str, float | int | str]]:
     rows: list[dict[str, float | int | str]] = []
@@ -170,7 +170,7 @@ def compute_fine_grained_counts(
     records: list[ImageRecord],
     prediction_root: Path,
     *,
-    transform: str,
+    transform: MaskTransform,
     prediction_threshold: int = 127,
 ) -> dict[str, PixelCounts]:
     category_counts = {category: PixelCounts() for category in CATEGORIES}

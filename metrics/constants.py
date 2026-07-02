@@ -11,9 +11,3 @@ CATEGORIES = (
 )
 
 CATEGORY_SET = set(CATEGORIES)
-
-TRANSFORMS = (
-    "keep-original-size",
-    "resize256-crop224",
-    "resize518-crop518",
-)

@@ -46,7 +46,6 @@ python metrics/evaluate_pixel.py \
   --split labeled_train \
   --task category-agnostic \
   --prediction-root metrics/examples/generated/pixel_inputs/category_agnostic_predictions \
-  --transform keep-original-size \
   --local-files-only \
   --output-overall metrics/examples/generated/category_agnostic_overall.csv \
   --output-per-generator metrics/examples/generated/category_agnostic_per_generator.csv
@@ -66,7 +65,6 @@ python metrics/evaluate_pixel.py \
   --split labeled_train \
   --task fine-grained \
   --prediction-root metrics/examples/generated/pixel_inputs/fine_grained_predictions \
-  --transform keep-original-size \
   --local-files-only \
   --output-overall metrics/examples/generated/fine_grained_overall.csv \
   --output-per-generator metrics/examples/generated/fine_grained_per_generator.csv

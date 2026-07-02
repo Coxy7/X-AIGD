@@ -43,7 +43,8 @@ python metrics/evaluate_pixel.py \
   --split labeled_test \
   --task category-agnostic \
   --prediction-root /path/to/category-agnostic-predictions \
-  --transform resize256-crop224 \
+  --resize-size 256 256 \
+  --center-crop 224 224 \
   --output-overall /tmp/xaigd-category-agnostic-overall.csv \
   --output-per-generator /tmp/xaigd-category-agnostic-per-generator.csv
 ```
@@ -56,7 +57,6 @@ python metrics/evaluate_pixel.py \
   --split labeled_test \
   --task fine-grained \
   --prediction-root /path/to/fine-grained-predictions \
-  --transform keep-original-size \
   --output-overall /tmp/xaigd-fine-grained-overall.csv \
   --output-per-generator /tmp/xaigd-fine-grained-per-generator.csv
 ```
@@ -84,11 +84,13 @@ prediction_root/
 
 All PNG masks in an image directory are binarized with `mask > 127` and merged with a pixelwise OR. Missing directories or empty directories mean an all-zero prediction. Prediction masks with unexpected dimensions are errors.
 
-Supported transforms:
+Prediction mask size handling:
 
-- `keep-original-size`: compare at the original image size.
-- `resize256-crop224`: resize the ground-truth mask to 256x256, then center crop 224x224.
-- `resize518-crop518`: resize shortest side to 518, then center crop 518x518.
+- By default, masks are compared at the original image size.
+- `--resize-size WIDTH HEIGHT` resizes the ground-truth mask to an explicit size before comparison.
+- `--resize-short-side PIXELS` resizes the ground-truth mask so its shortest side has the requested length while preserving aspect ratio.
+- `--center-crop WIDTH HEIGHT` center-crops the ground-truth mask after any resize step.
+- `--resize-size` and `--resize-short-side` are mutually exclusive.
 
 Masks are resized with nearest-neighbor interpolation. This keeps binary labels binary. Linear interpolation creates gray boundary pixels between 0 and 255, which changes foreground/background counts after thresholding and can silently drop pixels if exact 0/255 comparisons are used.
 

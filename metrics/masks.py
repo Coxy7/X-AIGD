@@ -1,10 +1,34 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import cv2
 import numpy as np
 
-from metrics.constants import CATEGORY_SET, TRANSFORMS
+from metrics.constants import CATEGORY_SET
 from metrics.data import ImageRecord
+
+
+@dataclass(frozen=True)
+class MaskTransform:
+    resize_size: tuple[int, int] | None = None
+    resize_short_side: int | None = None
+    center_crop: tuple[int, int] | None = None
+
+    def __post_init__(self) -> None:
+        if self.resize_size is not None and self.resize_short_side is not None:
+            raise ValueError("resize_size and resize_short_side are mutually exclusive")
+        if self.resize_size is not None:
+            validate_size(self.resize_size, "resize_size")
+        if self.resize_short_side is not None and self.resize_short_side <= 0:
+            raise ValueError("resize_short_side must be positive")
+        if self.center_crop is not None:
+            validate_size(self.center_crop, "center_crop")
+
+
+def validate_size(size: tuple[int, int], name: str) -> None:
+    if len(size) != 2 or size[0] <= 0 or size[1] <= 0:
+        raise ValueError(f"{name} must contain positive height and width values")
 
 
 def build_gt_mask(
@@ -32,31 +56,67 @@ def build_gt_mask(
     return mask
 
 
-def transformed_shape(record: ImageRecord, transform: str) -> tuple[int, int]:
-    if transform == "keep-original-size":
-        return record.height, record.width
-    if transform == "resize256-crop224":
-        return 224, 224
-    if transform == "resize518-crop518":
-        return 518, 518
-    raise ValueError(f"Unsupported transform {transform!r}; expected one of {TRANSFORMS}")
+def transformed_shape(record: ImageRecord, transform: MaskTransform) -> tuple[int, int]:
+    shape = apply_resize_shape((record.height, record.width), transform)
+    return apply_center_crop_shape(shape, transform)
 
 
-def transform_mask(mask: np.ndarray, transform: str) -> np.ndarray:
-    if transform == "keep-original-size":
-        return mask
-    if transform == "resize256-crop224":
-        resized = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_NEAREST)
-        return resized[16:240, 16:240]
-    if transform == "resize518-crop518":
+def transform_mask(mask: np.ndarray, transform: MaskTransform) -> np.ndarray:
+    output_mask = apply_resize(mask, transform)
+    return apply_center_crop(output_mask, transform)
+
+
+def apply_resize(mask: np.ndarray, transform: MaskTransform) -> np.ndarray:
+    if transform.resize_size is not None:
+        height, width = transform.resize_size
+        return cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+    if transform.resize_short_side is not None:
         height, width = mask.shape[:2]
+        short_side = transform.resize_short_side
         if height < width:
-            new_height, new_width = 518, int(width * 518 / height)
+            new_height, new_width = short_side, int(width * short_side / height)
         else:
-            new_height, new_width = int(height * 518 / width), 518
-        resized = cv2.resize(mask, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
-        height, width = resized.shape[:2]
-        start_height = (height - 518) // 2
-        start_width = (width - 518) // 2
-        return resized[start_height : start_height + 518, start_width : start_width + 518]
-    raise ValueError(f"Unsupported transform {transform!r}; expected one of {TRANSFORMS}")
+            new_height, new_width = int(height * short_side / width), short_side
+        return cv2.resize(mask, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
+    return mask
+
+
+def apply_resize_shape(shape: tuple[int, int], transform: MaskTransform) -> tuple[int, int]:
+    if transform.resize_size is not None:
+        return transform.resize_size
+    if transform.resize_short_side is not None:
+        height, width = shape
+        short_side = transform.resize_short_side
+        if height < width:
+            return short_side, int(width * short_side / height)
+        return int(height * short_side / width), short_side
+    return shape
+
+
+def apply_center_crop(mask: np.ndarray, transform: MaskTransform) -> np.ndarray:
+    if transform.center_crop is None:
+        return mask
+    crop_height, crop_width = transform.center_crop
+    height, width = mask.shape[:2]
+    if crop_height > height or crop_width > width:
+        raise ValueError(
+            f"center_crop {(crop_height, crop_width)} exceeds transformed mask shape {(height, width)}"
+        )
+    start_height = (height - crop_height) // 2
+    start_width = (width - crop_width) // 2
+    return mask[start_height : start_height + crop_height, start_width : start_width + crop_width]
+
+
+def apply_center_crop_shape(
+    shape: tuple[int, int],
+    transform: MaskTransform,
+) -> tuple[int, int]:
+    if transform.center_crop is None:
+        return shape
+    crop_height, crop_width = transform.center_crop
+    height, width = shape
+    if crop_height > height or crop_width > width:
+        raise ValueError(
+            f"center_crop {(crop_height, crop_width)} exceeds transformed mask shape {(height, width)}"
+        )
+    return crop_height, crop_width

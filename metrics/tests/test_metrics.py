@@ -15,7 +15,7 @@ from metrics.instance import (
     load_instance_predictions,
     match_box_to_mask,
 )
-from metrics.masks import build_gt_mask, transform_mask, transformed_shape
+from metrics.masks import MaskTransform, build_gt_mask, transform_mask, transformed_shape
 from metrics.pixel import evaluate_category_agnostic, evaluate_category_agnostic_per_generator
 from metrics.predictions import union_prediction_dir
 
@@ -65,7 +65,7 @@ class MaskTests(unittest.TestCase):
         mask = np.zeros((8, 8), dtype=np.uint8)
         mask[2:6, 2:6] = 255
 
-        transformed = transform_mask(mask, "resize256-crop224")
+        transformed = transform_mask(mask, MaskTransform(resize_size=(256, 256), center_crop=(224, 224)))
 
         self.assertEqual(transformed.shape, (224, 224))
         self.assertEqual(set(np.unique(transformed).tolist()), {0, 255})
@@ -73,9 +73,21 @@ class MaskTests(unittest.TestCase):
     def test_transformed_shape_matches_transform(self) -> None:
         record = make_record(labels=(), width=10, height=6)
 
-        self.assertEqual(transformed_shape(record, "keep-original-size"), (6, 10))
-        self.assertEqual(transformed_shape(record, "resize256-crop224"), (224, 224))
-        self.assertEqual(transformed_shape(record, "resize518-crop518"), (518, 518))
+        self.assertEqual(transformed_shape(record, MaskTransform()), (6, 10))
+        self.assertEqual(
+            transformed_shape(record, MaskTransform(resize_size=(256, 256), center_crop=(224, 224))),
+            (224, 224),
+        )
+        self.assertEqual(
+            transformed_shape(record, MaskTransform(resize_short_side=518, center_crop=(518, 518))),
+            (518, 518),
+        )
+
+    def test_transform_rejects_crop_larger_than_resized_shape(self) -> None:
+        record = make_record(labels=(), width=10, height=6)
+
+        with self.assertRaises(ValueError):
+            transformed_shape(record, MaskTransform(resize_short_side=5, center_crop=(6, 6)))
 
     def test_unknown_dataset_category_raises(self) -> None:
         with self.assertRaises(ValueError):
@@ -128,7 +140,7 @@ class PredictionTests(unittest.TestCase):
             row = evaluate_category_agnostic(
                 [record],
                 root,
-                transform="keep-original-size",
+                transform=MaskTransform(),
             )
 
         self.assertEqual(row["evaluated_images"], 1)
@@ -187,7 +199,7 @@ class PredictionTests(unittest.TestCase):
             rows = evaluate_category_agnostic_per_generator(
                 records,
                 root,
-                transform="keep-original-size",
+                transform=MaskTransform(),
             )
 
         self.assertEqual([row["generator"] for row in rows], ["gen-a", "gen-b"])
