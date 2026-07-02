@@ -201,6 +201,47 @@ class InstanceTests(unittest.TestCase):
         self.assertGreater(edge_specific["FN"], 0)
         self.assertEqual(edge_overall["FN"], edge_specific["FN"])
 
+    def test_instance_metric_outputs_threshold_named_columns(self) -> None:
+        record = make_record(
+            labels=(
+                ArtifactLabel(
+                    category="low-level-edge_shape",
+                    points=((1, 1), (4, 1), (4, 4), (1, 4)),
+                ),
+            )
+        )
+        box = PredictedBox("gen", "uid", "low-level-edge_shape", 1, 1, 4, 4)
+
+        per_generator_rows, _ = evaluate_instance_predictions(
+            [record],
+            {("gen", "uid", "low-level-edge_shape"): [box]},
+            overlap_threshold=0.5,
+        )
+
+        edge_specific = [
+            row for row in per_generator_rows if row["category"] == "low-level-edge_shape"
+        ][0]
+        self.assertEqual(edge_specific["P@0.5"], 1.0)
+        self.assertEqual(edge_specific["R@0.5"], 1.0)
+        self.assertEqual(edge_specific["F1@0.5"], 1.0)
+        self.assertEqual(
+            set(edge_specific),
+            {
+                "generator",
+                "category",
+                "P@0.5",
+                "R@0.5",
+                "F1@0.5",
+                "TP",
+                "FP",
+                "FN",
+                "evaluated_images",
+                "zero_prediction_images",
+                "invalid_prediction_boxes",
+                "skipped_malformed_polygons",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

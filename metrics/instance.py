@@ -34,16 +34,23 @@ class InstanceCounts:
     invalid_prediction_boxes: int = 0
     skipped_malformed_polygons: int = 0
 
-    def to_row(self, *, generator: str, category: str) -> dict[str, float | int | str]:
+    def to_row(
+        self,
+        *,
+        generator: str,
+        category: str,
+        overlap_threshold: float,
+    ) -> dict[str, float | int | str]:
         precision = safe_div(self.true_positive, self.true_positive + self.false_positive)
         recall = safe_div(self.true_positive, self.true_positive + self.false_negative)
         f1 = safe_div(2 * precision * recall, precision + recall)
+        threshold_label = format_threshold(overlap_threshold)
         return {
             "generator": generator,
             "category": category,
-            "Precision": precision,
-            "Recall": recall,
-            "F1": f1,
+            f"P@{threshold_label}": precision,
+            f"R@{threshold_label}": recall,
+            f"F1@{threshold_label}": f1,
             "TP": self.true_positive,
             "FP": self.false_positive,
             "FN": self.false_negative,
@@ -56,6 +63,10 @@ class InstanceCounts:
 
 def safe_div(numerator: float, denominator: float) -> float:
     return numerator / denominator if denominator else 0.0
+
+
+def format_threshold(threshold: float) -> str:
+    return f"{threshold:g}"
 
 
 def load_instance_predictions(csv_path: Path) -> dict[tuple[str, str, str], list[PredictedBox]]:
@@ -116,10 +127,20 @@ def evaluate_instance_predictions(
                 )
                 merge_instance_counts(counts, image_counts)
                 merge_instance_counts(overall_counts[category], image_counts)
-            per_generator_rows.append(counts.to_row(generator=generator, category=category))
+            per_generator_rows.append(
+                counts.to_row(
+                    generator=generator,
+                    category=category,
+                    overlap_threshold=overlap_threshold,
+                )
+            )
 
     overall_rows = [
-        overall_counts[category].to_row(generator="all", category=category)
+        overall_counts[category].to_row(
+            generator="all",
+            category=category,
+            overlap_threshold=overlap_threshold,
+        )
         for category in CATEGORIES
     ]
     return per_generator_rows, overall_rows

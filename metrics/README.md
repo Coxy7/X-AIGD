@@ -85,7 +85,20 @@ task, category, IoU, PixP, PixR, PixF1,
 evaluated_images, zero_prediction_images, skipped_malformed_polygons
 ```
 
-The pixel-level metrics are computed from artifact foreground pixels:
+Explanation of the metrics:
+
+- `IoU`: intersection over union for artifact foreground pixels.
+- `PixP`: pixel-level precision for artifact foreground pixels.
+- `PixR`: pixel-level recall for artifact foreground pixels.
+- `PixF1`: pixel-level F1-score for artifact foreground pixels.
+
+For these pixel-level metrics, `TP` (true positives), `FP` (false positives), and `FN` (false negatives) are counted over pixels:
+
+- `TP`: pixels predicted as artifact and labeled as artifact.
+- `FP`: pixels predicted as artifact but labeled as background.
+- `FN`: pixels predicted as background but labeled as artifact.
+
+The formulas are:
 
 ```text
 IoU = TP / (TP + FP + FN)
@@ -135,17 +148,19 @@ Counts are accumulated from these flags:
   they contribute to `FP`.
 - `FN`: number of unmatched ground-truth instances.
 
-Precision, recall, and F1 are computed from the accumulated `TP`, `FP`, and `FN` counts:
+Instance-level metric names include the overlap threshold after `@`. For example, with the default `--overlap-threshold 0.5`, `P@0.5` means precision after applying the `0.5` matching threshold. `R@0.5` and `F1@0.5` are recall and F1 under the same threshold.
+
+Let `t` denote the overlap threshold. `P@t`, `R@t`, and `F1@t` are reported as fractions in `[0, 1]` and computed from the accumulated `TP`, `FP`, and `FN` counts:
 
 ```text
-Precision = TP / (TP + FP)
-Recall = TP / (TP + FN)
-F1 = 2 * Precision * Recall / (Precision + Recall)
+P@t = TP / (TP + FP)
+R@t = TP / (TP + FN)
+F1@t = 2 * P@t * R@t / (P@t + R@t)
 ```
 
-Instance-level evaluation output includes per-generator rows and overall rows. Overall rows use `all` in the `generator` column. Both files contain:
+Instance-level evaluation output includes per-generator rows and overall rows. Overall rows use `all` in the `generator` column. Both files contain metric columns named with the selected threshold; with the default `--overlap-threshold 0.5`, the columns are:
 
 ```text
-generator, category, Precision, Recall, F1, TP, FP, FN,
+generator, category, P@0.5, R@0.5, F1@0.5, TP, FP, FN,
 evaluated_images, zero_prediction_images, invalid_prediction_boxes, skipped_malformed_polygons
 ```
