@@ -54,7 +54,7 @@ def write_csv(output_path: Path, rows: list[dict]) -> None:
     if not rows:
         raise ValueError("No metric rows to write")
     with output_path.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(csv_file, fieldnames=list(rows[0].keys()), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
