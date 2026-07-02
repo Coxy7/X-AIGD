@@ -44,6 +44,17 @@ We provide a lightweight interactive Streamlit app for exploring X-AIGD images, 
 For setup and usage instructions, see [tools/dataset_viewer/README.md](tools/dataset_viewer/README.md).
 
 
+## 📊 Metric Evaluation
+
+We provide evaluation scripts for three settings of Perceptual Artifact Detection (PAD):
+
+- **Pixel-Level Category-Agnostic Evaluation**: Measures pixel-level localization of artifact regions without distinguishing categories.
+- **Pixel-Level Fine-Grained Evaluation**: Measures pixel-level localization for each of the 7 artifact categories independently.
+- **Instance-Level Evaluation**: Measures bounding box detection of individual artifact instances with category labels.
+
+For detailed usage, prediction format requirements, and runnable examples, see [metrics/README.md](metrics/README.md).
+
+
 ## 📅 Current Status & TODO
 
 We are currently preparing the dataset and code for public release. Stay tuned!
@@ -52,7 +63,7 @@ We are currently preparing the dataset and code for public release. Stay tuned!
   - All images and artifact annotations have been released on [Hugging Face](https://huggingface.co/datasets/Coxy7/X-AIGD)
 - **Dataset-related scripts**: Scripts for dataset processing, metric calculation, etc.
   - Dataset viewer released: [tools/dataset_viewer](tools/dataset_viewer)
-  - [WIP] Metric calculation code
+  - Metric evaluation code released: [metrics](metrics)
 - **Experiment code**: Code for model training and evaluation. (TODO)
 
 
