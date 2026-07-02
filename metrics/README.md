@@ -1,10 +1,32 @@
 # X-AIGD Metric Evaluation
 
-This directory contains metric code for the X-AIGD dataset.
+This directory contains metric evaluation code for the X-AIGD dataset.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Data Source](#data-source)
+  - [Ground-Truth Labels](#ground-truth-labels)
+  - [Ground-Truth Masks](#ground-truth-masks)
+- [Examples](#examples)
+- [Pixel-Level Metrics](#pixel-level-metrics)
+  - [Usage Examples](#usage-examples)
+  - [Prediction Layout Requirements](#prediction-layout-requirements)
+  - [Image Preprocessing and Mask Handling](#image-preprocessing-and-mask-handling)
+  - [Evaluation Output Format](#evaluation-output-format)
+  - [Metrics Explanation](#metrics-explanation)
+- [Instance-Level Metrics](#instance-level-metrics)
+  - [Usage Example](#usage-example)
+  - [Prediction CSV Schema](#prediction-csv-schema)
+  - [Ground-Truth Instance Generation](#ground-truth-instance-generation)
+  - [Matching Strategy](#matching-strategy)
+  - [Evaluation Output Format](#evaluation-output-format-1)
+  - [Metrics Explanation](#metrics-explanation-1)
 
 ## Prerequisites
 
 The evaluation scripts require the following Python libraries:
+
 - `opencv-python`
 - `numpy`
 - `pyarrow`
@@ -12,22 +34,28 @@ The evaluation scripts require the following Python libraries:
 
 ## Data Source
 
-Ground-truth labels are read directly from the Hugging Face dataset rows:
+Ground-truth labels are read directly from the Hugging Face dataset rows. Note that the `image` itself is not decoded for metric computation.
 
-- `image` is not decoded for metric computation.
-- `generator`, `uid`, `width`, `height`, and `labels` are read from the split Parquet files.
-- `labels` must use the supported category names:
-  - `low-level-edge_shape`
-  - `low-level-texture`
-  - `low-level-color`
-  - `low-level-symbol`
-  - `high-level-semantics`
-  - `cognitive-level-commonsense`
-  - `cognitive-level-physics`
+### Ground-Truth Labels
 
-Unknown categories are treated as errors.
+The attributes `generator`, `uid`, `width`, `height`, and `labels` are read from the split Parquet files. The `labels` attribute must use one of the supported category names:
 
-Ground-truth masks are generated in memory. Polygon points are converted with `np.array(points, dtype=np.int32)`, then rasterized with `cv2.fillPoly(..., 255)`. This means fractional coordinates are truncated before rasterization. Polygons with fewer than three points are treated as annotation errors.
+- `low-level-edge_shape`
+- `low-level-texture`
+- `low-level-color`
+- `low-level-symbol`
+- `high-level-semantics`
+- `cognitive-level-commonsense`
+- `cognitive-level-physics`
+
+*Unknown categories are treated as errors.*
+
+### Ground-Truth Masks
+
+Ground-truth masks are generated in memory during evaluation:
+1. Polygon points are converted to integers using `np.array(points, dtype=np.int32)`. Fractional coordinates are truncated.
+2. The polygons are rasterized with `cv2.fillPoly(..., 255)`.
+3. Polygons with fewer than three points are treated as annotation errors.
 
 ## Examples
 
@@ -35,7 +63,9 @@ See `metrics/examples/README.md` for runnable category-agnostic pixel, fine-grai
 
 ## Pixel-Level Metrics
 
-Example command to run category-agnostic pixel evaluation:
+### Usage Examples
+
+**Category-Agnostic Pixel Evaluation:**
 
 ```bash
 python metrics/evaluate_pixel.py \
@@ -49,7 +79,7 @@ python metrics/evaluate_pixel.py \
   --output-per-generator /tmp/xaigd-category-agnostic-per-generator.csv
 ```
 
-Example command to run fine-grained pixel evaluation:
+**Fine-Grained Pixel Evaluation:**
 
 ```bash
 python metrics/evaluate_pixel.py \
@@ -61,9 +91,13 @@ python metrics/evaluate_pixel.py \
   --output-per-generator /tmp/xaigd-fine-grained-per-generator.csv
 ```
 
-Note: `--output-overall` is required and `--output-per-generator` is optional.
+*Note: `--output-overall` is required, while `--output-per-generator` is optional.*
 
-Expected category-agnostic prediction layout:
+### Prediction Layout Requirements
+
+Missing directories or empty directories are interpreted as an all-zero prediction. Prediction masks with unexpected dimensions will result in errors.
+
+**Category-Agnostic Layout:**
 
 ```text
 prediction_root/
@@ -72,7 +106,7 @@ prediction_root/
       *.png
 ```
 
-Expected fine-grained prediction layout:
+**Fine-Grained Layout:**
 
 ```text
 prediction_root/
@@ -82,49 +116,55 @@ prediction_root/
         *.png
 ```
 
-All PNG masks in an image directory are binarized with `mask > 127` and merged with a pixelwise OR. Missing directories or empty directories mean an all-zero prediction. Prediction masks with unexpected dimensions are errors.
+### Image Preprocessing and Mask Handling
 
-Prediction mask size handling:
+All PNG masks in an image directory are binarized using `mask > 127` and merged with a pixel-wise OR operation.
 
-- By default, masks are compared at the original image size.
-- `--resize-size WIDTH HEIGHT` resizes the ground-truth mask to an explicit size before comparison.
-- `--resize-short-side PIXELS` resizes the ground-truth mask so its shortest side has the requested length while preserving aspect ratio.
-- `--center-crop WIDTH HEIGHT` center-crops the ground-truth mask after any resize step.
-- `--resize-size` and `--resize-short-side` are mutually exclusive.
+**Mask Resizing Options:**
 
-Masks are resized with nearest-neighbor interpolation. This keeps binary labels binary. Linear interpolation creates gray boundary pixels between 0 and 255, which changes foreground/background counts after thresholding and can silently drop pixels if exact 0/255 comparisons are used.
+- By default, masks are compared at their original image size.
+- `--resize-size WIDTH HEIGHT`: Resizes the ground-truth mask to an explicit size before comparison.
+- `--resize-short-side PIXELS`: Resizes the ground-truth mask so its shortest side has the requested length while preserving the aspect ratio.
+- `--center-crop WIDTH HEIGHT`: Center-crops the ground-truth mask after any resizing step.
 
-Pixel-level evaluation reports artifact-region metrics as fractions in `[0, 1]`. Overall rows use `all` in the `generator` column. For category-agnostic evaluation, `category` is `all`. For fine-grained evaluation, the output contains one row per category.
+*Note: `--resize-size` and `--resize-short-side` are mutually exclusive.*
+
+Masks are resized using nearest-neighbor interpolation. This approach keeps binary labels binary.
+
+### Evaluation Output Format
+
+Pixel-level evaluation reports artifact-region metrics as fractions in the range `[0, 1]`. 
+
+The CSV output structure is as follows:
 
 ```text
 generator, task, category, IoU, PixP, PixR, PixF1, evaluated_images, zero_prediction_images
 ```
 
-Explanation of the metrics:
+- **Overall Rows:** The `generator` column is set to `all`.
+- **Category-Agnostic:** The `category` column is set to `all`.
+- **Fine-Grained:** Contains one row per category.
 
-- `IoU`: intersection over union for artifact foreground pixels.
-- `PixP`: pixel-level precision for artifact foreground pixels.
-- `PixR`: pixel-level recall for artifact foreground pixels.
-- `PixF1`: pixel-level F1-score for artifact foreground pixels.
+### Metrics Explanation
 
-For these pixel-level metrics, `TP` (true positives), `FP` (false positives), and `FN` (false negatives) are counted over pixels:
+For pixel-level metrics, True Positives (`TP`), False Positives (`FP`), and False Negatives (`FN`) are counted over individual pixels:
 
-- `TP`: pixels predicted as artifact and labeled as artifact.
-- `FP`: pixels predicted as artifact but labeled as background.
-- `FN`: pixels predicted as background but labeled as artifact.
+- **`TP`**: Pixels predicted as artifact and labeled as artifact.
+- **`FP`**: Pixels predicted as artifact but labeled as background.
+- **`FN`**: Pixels predicted as background but labeled as artifact.
 
-The formulas are:
+The metrics calculated are:
 
-```text
-IoU = TP / (TP + FP + FN)
-PixP = TP / (TP + FP)
-PixR = TP / (TP + FN)
-PixF1 = 2 * PixP * PixR / (PixP + PixR)
-```
+- **`IoU` (Intersection over Union)**: `TP / (TP + FP + FN)`
+- **`PixP` (Pixel-level Precision)**: `TP / (TP + FP)`
+- **`PixR` (Pixel-level Recall)**: `TP / (TP + FN)`
+- **`PixF1` (Pixel-level F1-score)**: `2 * PixP * PixR / (PixP + PixR)`
+
+---
 
 ## Instance-Level Metrics
 
-Example command to run instance-level evaluation:
+### Usage Example
 
 ```bash
 python metrics/evaluate_instance.py \
@@ -135,46 +175,63 @@ python metrics/evaluate_instance.py \
   --output-per-generator /tmp/xaigd-instance-per-generator.csv
 ```
 
-For instance-level evaluation, `--output-overall` is required and `--output-per-generator` is optional.
+*Note: `--output-overall` is required, while `--output-per-generator` is optional.*
 
-Prediction CSV schema:
+### Prediction CSV Schema
 
 ```text
 generator,uid,category,x_min,y_min,x_max,y_max
 ```
 
-Each row is one predicted bounding box. Missing rows for an image/category mean zero predicted instances. Unknown categories are errors. Boxes outside image bounds are counted as invalid unmatched predictions.
+- Each row represents one predicted bounding box.
+- Missing rows for an image/category indicate zero predicted instances.
+- Unknown categories will result in errors.
+- Boxes falling outside the image bounds are counted as invalid, unmatched predictions.
 
-For each image and category, ground-truth instances are built by unioning the category masks, dilating the union once with a 5x5 rectangular kernel, and converting the dilated mask to connected components. Each component is then intersected with the original, undilated category mask before box overlap is measured.
+### Ground-Truth Instance Generation
 
-A prediction matches a ground-truth instance when:
+For each image and category, ground-truth instances are generated by:
+1. Unioning the category masks.
+2. Dilating the union once using a `5x5` rectangular kernel.
+3. Converting the dilated mask to connected components.
+4. Intersecting each component with the original, undilated category mask before measuring box overlap.
+
+### Matching Strategy
+
+A prediction is considered to match a ground-truth instance when:
 
 ```text
 intersection_area / predicted_box_area > overlap_threshold
 ```
 
-The default overlap threshold is `0.5` and can be changed with `--overlap-threshold`. This is not IoU.
+- **Threshold**: The default overlap threshold is `0.5`, which can be adjusted via `--overlap-threshold`. *Note that this is not IoU.*
+- **Matching Process**: The matching is flag-based rather than a strict one-to-one assignment. The evaluator maintains a matched/unmatched flag for each predicted box and each ground-truth instance.
+  - If a predicted box meets the overlap rule for a ground-truth instance, both flags are marked as matched.
+  - Multiple predicted boxes can match the same ground-truth instance.
+  - A single predicted box can match multiple ground-truth instances if it satisfies the overlap rule for each.
 
-The matching is flag-based, not a one-to-one assignment. The evaluator keeps one matched/unmatched flag per predicted box and one matched/unmatched flag per ground-truth instance. If a predicted box satisfies the overlap rule for a ground-truth instance, both flags are marked as matched. Multiple predicted boxes may match the same ground-truth instance, and one predicted box may match multiple ground-truth instances if it satisfies the overlap rule for each of them.
+### Evaluation Output Format
 
-Counts are accumulated from these flags:
+Instance-level evaluation output includes overall rows and optionally per-generator rows.
 
-- `TP`: number of matched ground-truth instances.
-- `FP`: number of unmatched predicted boxes. Invalid boxes remain unmatched, so they contribute to `FP`.
-- `FN`: number of unmatched ground-truth instances.
-
-Instance-level metric names include the overlap threshold after `@`. For example, with the default `--overlap-threshold 0.5`, `P@0.5` means precision after applying the `0.5` matching threshold. `R@0.5` and `F1@0.5` are recall and F1 under the same threshold.
-
-Let `t` denote the overlap threshold. `P@t`, `R@t`, and `F1@t` are reported as fractions in `[0, 1]` and computed from the accumulated `TP`, `FP`, and `FN` counts:
-
-```text
-P@t = TP / (TP + FP)
-R@t = TP / (TP + FN)
-F1@t = 2 * P@t * R@t / (P@t + R@t)
-```
-
-Instance-level evaluation output includes overall rows and optionally per-generator rows. Overall rows use `all` in the `generator` column. Both files contain metric columns named with the selected threshold; with the default `--overlap-threshold 0.5`, the columns are:
+Both output files contain metric columns named according to the selected overlap threshold (e.g., `@0.5` for the default `0.5` threshold). The CSV output structure is as follows:
 
 ```text
 generator, category, P@0.5, R@0.5, F1@0.5, TP, FP, FN, evaluated_images, zero_prediction_images, invalid_prediction_boxes
 ```
+
+- **Overall Rows:** The `generator` column is set to `all`.
+
+### Metrics Explanation
+
+For instance-level metrics, True Positives (`TP`), False Positives (`FP`), and False Negatives (`FN`) are counted based on matched and unmatched flags:
+
+- **`TP`**: Number of matched ground-truth instances.
+- **`FP`**: Number of unmatched predicted boxes. (Invalid boxes remain unmatched and contribute to `FP`).
+- **`FN`**: Number of unmatched ground-truth instances.
+
+Let `t` denote the overlap threshold (e.g., `0.5`). `P@t`, `R@t`, and `F1@t` are reported as fractions in the range `[0, 1]` and computed from the accumulated counts:
+
+- **`P@t` (Precision)**: `TP / (TP + FP)`
+- **`R@t` (Recall)**: `TP / (TP + FN)`
+- **`F1@t` (F1-score)**: `2 * P@t * R@t / (P@t + R@t)`
