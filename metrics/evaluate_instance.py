@@ -21,8 +21,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset-repo", default="Coxy7/X-AIGD")
     parser.add_argument("--split", default="labeled_test")
     parser.add_argument("--prediction-csv", required=True, type=Path)
-    parser.add_argument("--output-per-generator", required=True, type=Path)
     parser.add_argument("--output-overall", required=True, type=Path)
+    parser.add_argument("--output-per-generator", type=Path)
     parser.add_argument("--overlap-threshold", default=0.5, type=float)
     parser.add_argument("--revision")
     parser.add_argument("--cache-dir")
@@ -45,8 +45,9 @@ def main() -> None:
         predictions,
         overlap_threshold=args.overlap_threshold,
     )
-    write_csv(args.output_per_generator, per_generator_rows)
     write_csv(args.output_overall, overall_rows)
+    if args.output_per_generator:
+        write_csv(args.output_per_generator, per_generator_rows)
 
 
 def write_csv(output_path: Path, rows: list[dict]) -> None:

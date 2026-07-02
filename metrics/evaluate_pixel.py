@@ -11,7 +11,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from metrics.constants import TRANSFORMS
 from metrics.data import load_hf_records
-from metrics.pixel import evaluate_category_agnostic, evaluate_fine_grained
+from metrics.pixel import (
+    evaluate_category_agnostic,
+    evaluate_category_agnostic_per_generator,
+    evaluate_fine_grained,
+    evaluate_fine_grained_per_generator,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,7 +26,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prediction-root", required=True, type=Path)
     parser.add_argument("--task", choices=["category-agnostic", "fine-grained"], required=True)
     parser.add_argument("--transform", choices=TRANSFORMS, required=True)
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--output-overall", required=True, type=Path)
+    parser.add_argument("--output-per-generator", type=Path)
     parser.add_argument("--prediction-threshold", default=127, type=int)
     parser.add_argument("--revision")
     parser.add_argument("--cache-dir")
@@ -31,6 +37,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    per_generator_rows = None
     records = load_hf_records(
         args.dataset_repo,
         args.split,
@@ -39,7 +46,7 @@ def main() -> None:
         local_files_only=args.local_files_only,
     )
     if args.task == "category-agnostic":
-        rows = [
+        overall_rows = [
             evaluate_category_agnostic(
                 records,
                 args.prediction_root,
@@ -47,14 +54,30 @@ def main() -> None:
                 prediction_threshold=args.prediction_threshold,
             )
         ]
+        if args.output_per_generator:
+            per_generator_rows = evaluate_category_agnostic_per_generator(
+                records,
+                args.prediction_root,
+                transform=args.transform,
+                prediction_threshold=args.prediction_threshold,
+            )
     else:
-        rows = evaluate_fine_grained(
+        overall_rows = evaluate_fine_grained(
             records,
             args.prediction_root,
             transform=args.transform,
             prediction_threshold=args.prediction_threshold,
         )
-    write_csv(args.output, rows)
+        if args.output_per_generator:
+            per_generator_rows = evaluate_fine_grained_per_generator(
+                records,
+                args.prediction_root,
+                transform=args.transform,
+                prediction_threshold=args.prediction_threshold,
+            )
+    write_csv(args.output_overall, overall_rows)
+    if args.output_per_generator and per_generator_rows is not None:
+        write_csv(args.output_per_generator, per_generator_rows)
 
 
 def write_csv(output_path: Path, rows: list[dict]) -> None:

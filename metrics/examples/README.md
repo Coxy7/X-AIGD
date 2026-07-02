@@ -48,9 +48,10 @@ python metrics/evaluate_pixel.py \
   --prediction-root metrics/examples/generated/pixel_inputs/category_agnostic_predictions \
   --transform keep-original-size \
   --local-files-only \
-  --output metrics/examples/generated/category_agnostic.csv
+  --output-overall metrics/examples/generated/category_agnostic_overall.csv \
+  --output-per-generator metrics/examples/generated/category_agnostic_per_generator.csv
 ```
-Verify that the output matches [expected_category_agnostic.csv](expected_category_agnostic.csv).
+Verify that the outputs match [expected_category_agnostic_overall.csv](expected_category_agnostic_overall.csv) and [expected_category_agnostic_per_generator.csv](expected_category_agnostic_per_generator.csv).
 
 ---
 
@@ -67,9 +68,10 @@ python metrics/evaluate_pixel.py \
   --prediction-root metrics/examples/generated/pixel_inputs/fine_grained_predictions \
   --transform keep-original-size \
   --local-files-only \
-  --output metrics/examples/generated/fine_grained.csv
+  --output-overall metrics/examples/generated/fine_grained_overall.csv \
+  --output-per-generator metrics/examples/generated/fine_grained_per_generator.csv
 ```
-Verify that the output matches [expected_fine_grained.csv](expected_fine_grained.csv).
+Verify that the outputs match [expected_fine_grained_overall.csv](expected_fine_grained_overall.csv) and [expected_fine_grained_per_generator.csv](expected_fine_grained_per_generator.csv).
 
 ---
 
@@ -83,8 +85,8 @@ python metrics/evaluate_instance.py \
   --dataset-repo Coxy7/X-AIGD-demo \
   --split labeled_train \
   --prediction-csv metrics/examples/instance_predictions.csv \
-  --output-per-generator metrics/examples/generated/instance_per_generator.csv \
   --output-overall metrics/examples/generated/instance_overall.csv \
+  --output-per-generator metrics/examples/generated/instance_per_generator.csv \
   --local-files-only
 ```
 Verify that the outputs match [expected_instance_overall.csv](expected_instance_overall.csv) and [expected_instance_per_generator.csv](expected_instance_per_generator.csv).

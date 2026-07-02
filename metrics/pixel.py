@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,7 +26,13 @@ class PixelCounts:
         self.false_negative += int(np.sum((pred_mask == 0) & (gt_mask == 255)))
         self.evaluated_images += 1
 
-    def to_metrics_row(self, *, task: str, category: str | None = None) -> dict[str, float | int | str]:
+    def to_metrics_row(
+        self,
+        *,
+        generator: str,
+        task: str,
+        category: str | None = None,
+    ) -> dict[str, float | int | str]:
         iou = safe_div(
             self.true_positive,
             self.true_positive + self.false_positive + self.false_negative,
@@ -34,6 +41,7 @@ class PixelCounts:
         recall = safe_div(self.true_positive, self.true_positive + self.false_negative)
         f1 = safe_div(2 * precision * recall, precision + recall)
         row: dict[str, float | int | str] = {
+            "generator": generator,
             "task": task,
             "category": category or "all",
             "IoU": iou,
@@ -57,6 +65,41 @@ def evaluate_category_agnostic(
     transform: str,
     prediction_threshold: int = 127,
 ) -> dict[str, float | int | str]:
+    counts = compute_category_agnostic_counts(
+        records,
+        prediction_root,
+        transform=transform,
+        prediction_threshold=prediction_threshold,
+    )
+    return counts.to_metrics_row(generator="all", task="category-agnostic")
+
+
+def evaluate_category_agnostic_per_generator(
+    records: list[ImageRecord],
+    prediction_root: Path,
+    *,
+    transform: str,
+    prediction_threshold: int = 127,
+) -> list[dict[str, float | int | str]]:
+    rows: list[dict[str, float | int | str]] = []
+    for generator, generator_records in group_records_by_generator(records).items():
+        counts = compute_category_agnostic_counts(
+            generator_records,
+            prediction_root,
+            transform=transform,
+            prediction_threshold=prediction_threshold,
+        )
+        rows.append(counts.to_metrics_row(generator=generator, task="category-agnostic"))
+    return rows
+
+
+def compute_category_agnostic_counts(
+    records: list[ImageRecord],
+    prediction_root: Path,
+    *,
+    transform: str,
+    prediction_threshold: int = 127,
+) -> PixelCounts:
     counts = PixelCounts()
     category_set = set(CATEGORIES)
     for record in records:
@@ -71,7 +114,7 @@ def evaluate_category_agnostic(
         gt_mask = transform_mask(gt_mask, transform)
         counts.zero_prediction_images += int(is_zero_prediction)
         counts.add_masks(pred_mask, gt_mask)
-    return counts.to_metrics_row(task="category-agnostic")
+    return counts
 
 
 def evaluate_fine_grained(
@@ -81,9 +124,58 @@ def evaluate_fine_grained(
     transform: str,
     prediction_threshold: int = 127,
 ) -> list[dict[str, float | int | str]]:
+    category_counts = compute_fine_grained_counts(
+        records,
+        prediction_root,
+        transform=transform,
+        prediction_threshold=prediction_threshold,
+    )
+    return [
+        category_counts[category].to_metrics_row(
+            generator="all",
+            task="fine-grained",
+            category=category,
+        )
+        for category in CATEGORIES
+    ]
+
+
+def evaluate_fine_grained_per_generator(
+    records: list[ImageRecord],
+    prediction_root: Path,
+    *,
+    transform: str,
+    prediction_threshold: int = 127,
+) -> list[dict[str, float | int | str]]:
     rows: list[dict[str, float | int | str]] = []
+    for generator, generator_records in group_records_by_generator(records).items():
+        category_counts = compute_fine_grained_counts(
+            generator_records,
+            prediction_root,
+            transform=transform,
+            prediction_threshold=prediction_threshold,
+        )
+        for category in CATEGORIES:
+            rows.append(
+                category_counts[category].to_metrics_row(
+                    generator=generator,
+                    task="fine-grained",
+                    category=category,
+                )
+            )
+    return rows
+
+
+def compute_fine_grained_counts(
+    records: list[ImageRecord],
+    prediction_root: Path,
+    *,
+    transform: str,
+    prediction_threshold: int = 127,
+) -> dict[str, PixelCounts]:
+    category_counts = {category: PixelCounts() for category in CATEGORIES}
     for category in CATEGORIES:
-        counts = PixelCounts()
+        counts = category_counts[category]
         for record in records:
             expected_shape = transformed_shape(record, transform)
             pred_dir = prediction_root / record.generator / category / record.uid
@@ -96,5 +188,11 @@ def evaluate_fine_grained(
             gt_mask = transform_mask(gt_mask, transform)
             counts.zero_prediction_images += int(is_zero_prediction)
             counts.add_masks(pred_mask, gt_mask)
-        rows.append(counts.to_metrics_row(task="fine-grained", category=category))
-    return rows
+    return category_counts
+
+
+def group_records_by_generator(records: list[ImageRecord]) -> dict[str, list[ImageRecord]]:
+    records_by_generator: dict[str, list[ImageRecord]] = defaultdict(list)
+    for record in records:
+        records_by_generator[record.generator].append(record)
+    return {generator: records_by_generator[generator] for generator in sorted(records_by_generator)}

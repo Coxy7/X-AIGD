@@ -16,7 +16,7 @@ from metrics.instance import (
     match_box_to_mask,
 )
 from metrics.masks import build_gt_mask, transform_mask, transformed_shape
-from metrics.pixel import evaluate_category_agnostic
+from metrics.pixel import evaluate_category_agnostic, evaluate_category_agnostic_per_generator
 from metrics.predictions import union_prediction_dir
 
 
@@ -133,6 +133,7 @@ class PredictionTests(unittest.TestCase):
 
         self.assertEqual(row["evaluated_images"], 1)
         self.assertEqual(row["zero_prediction_images"], 0)
+        self.assertEqual(row["generator"], "all")
         self.assertEqual(row["IoU"], 0.36)
         self.assertEqual(row["PixP"], 0.36)
         self.assertEqual(row["PixR"], 1.0)
@@ -140,6 +141,7 @@ class PredictionTests(unittest.TestCase):
         self.assertEqual(
             set(row),
             {
+                "generator",
                 "task",
                 "category",
                 "IoU",
@@ -150,6 +152,47 @@ class PredictionTests(unittest.TestCase):
                 "zero_prediction_images",
             },
         )
+
+    def test_pixel_metric_outputs_per_generator_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            for generator in ("gen-a", "gen-b"):
+                pred_dir = root / generator / "uid"
+                pred_dir.mkdir(parents=True)
+                pred = np.zeros((8, 8), dtype=np.uint8)
+                pred[1:4, 1:4] = 255
+                cv2.imwrite(str(pred_dir / "mask.png"), pred)
+
+            records = [
+                make_record(
+                    generator="gen-a",
+                    labels=(
+                        ArtifactLabel(
+                            category="low-level-edge_shape",
+                            points=((1, 1), (3, 1), (3, 3), (1, 3)),
+                        ),
+                    ),
+                ),
+                make_record(
+                    generator="gen-b",
+                    labels=(
+                        ArtifactLabel(
+                            category="low-level-edge_shape",
+                            points=((1, 1), (3, 1), (3, 3), (1, 3)),
+                        ),
+                    ),
+                ),
+            ]
+
+            rows = evaluate_category_agnostic_per_generator(
+                records,
+                root,
+                transform="keep-original-size",
+            )
+
+        self.assertEqual([row["generator"] for row in rows], ["gen-a", "gen-b"])
+        self.assertEqual([row["evaluated_images"] for row in rows], [1, 1])
+        self.assertEqual([row["IoU"] for row in rows], [1.0, 1.0])
 
 
 class InstanceTests(unittest.TestCase):
