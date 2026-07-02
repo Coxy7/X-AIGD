@@ -78,12 +78,20 @@ Supported transforms:
 
 Masks are resized with nearest-neighbor interpolation. This keeps binary labels binary. Linear interpolation creates gray boundary pixels between 0 and 255, which changes foreground/background counts after thresholding and can silently drop pixels if exact 0/255 comparisons are used.
 
-Pixel-level evaluation output columns include raw counts and percentages:
+Pixel-level evaluation reports artifact-region metrics as fractions in `[0, 1]`. For category-agnostic evaluation, `category` is `all`. For fine-grained evaluation, the output contains one row per category.
 
 ```text
-task, category, TP_0, FP_0, FN_0, TP_255, FP_255, FN_255,
-iou_255, precision_255, recall_255, f1_255, mIoU,
+task, category, IoU, PixP, PixR, PixF1,
 evaluated_images, zero_prediction_images, skipped_malformed_polygons
+```
+
+The pixel-level metrics are computed from artifact foreground pixels:
+
+```text
+IoU = TP / (TP + FP + FN)
+PixP = TP / (TP + FP)
+PixR = TP / (TP + FN)
+PixF1 = 2 * PixP * PixR / (PixP + PixR)
 ```
 
 ## Instance-Level Metrics

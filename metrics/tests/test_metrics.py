@@ -96,7 +96,7 @@ class PredictionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 union_prediction_dir(pred_dir, (4, 4))
 
-    def test_pixel_metric_counts_tiny_masks(self) -> None:
+    def test_pixel_metric_outputs_paper_metrics(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             pred_dir = root / "gen" / "uid"
@@ -121,8 +121,24 @@ class PredictionTests(unittest.TestCase):
 
         self.assertEqual(row["evaluated_images"], 1)
         self.assertEqual(row["zero_prediction_images"], 0)
-        self.assertGreater(row["TP_255"], 0)
-        self.assertGreater(row["FP_255"], 0)
+        self.assertEqual(row["IoU"], 0.36)
+        self.assertEqual(row["PixP"], 0.36)
+        self.assertEqual(row["PixR"], 1.0)
+        self.assertAlmostEqual(row["PixF1"], 0.5294117647058824)
+        self.assertEqual(
+            set(row),
+            {
+                "task",
+                "category",
+                "IoU",
+                "PixP",
+                "PixR",
+                "PixF1",
+                "evaluated_images",
+                "zero_prediction_images",
+                "skipped_malformed_polygons",
+            },
+        )
 
 
 class InstanceTests(unittest.TestCase):

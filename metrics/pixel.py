@@ -13,45 +13,34 @@ from metrics.predictions import union_prediction_dir
 
 @dataclass
 class PixelCounts:
-    tp_0: int = 0
-    fp_0: int = 0
-    fn_0: int = 0
-    tp_255: int = 0
-    fp_255: int = 0
-    fn_255: int = 0
+    true_positive: int = 0
+    false_positive: int = 0
+    false_negative: int = 0
     evaluated_images: int = 0
     zero_prediction_images: int = 0
     skipped_malformed_polygons: int = 0
 
     def add_masks(self, pred_mask: np.ndarray, gt_mask: np.ndarray) -> None:
-        self.tp_0 += int(np.sum((pred_mask == 0) & (gt_mask == 0)))
-        self.fp_0 += int(np.sum((pred_mask == 0) & (gt_mask == 255)))
-        self.fn_0 += int(np.sum((pred_mask == 255) & (gt_mask == 0)))
-        self.tp_255 += int(np.sum((pred_mask == 255) & (gt_mask == 255)))
-        self.fp_255 += int(np.sum((pred_mask == 255) & (gt_mask == 0)))
-        self.fn_255 += int(np.sum((pred_mask == 0) & (gt_mask == 255)))
+        self.true_positive += int(np.sum((pred_mask == 255) & (gt_mask == 255)))
+        self.false_positive += int(np.sum((pred_mask == 255) & (gt_mask == 0)))
+        self.false_negative += int(np.sum((pred_mask == 0) & (gt_mask == 255)))
         self.evaluated_images += 1
 
     def to_metrics_row(self, *, task: str, category: str | None = None) -> dict[str, float | int | str]:
-        iou_0 = safe_div(self.tp_0, self.tp_0 + self.fp_0 + self.fn_0)
-        iou_255 = safe_div(self.tp_255, self.tp_255 + self.fp_255 + self.fn_255)
-        precision_255 = safe_div(self.tp_255, self.tp_255 + self.fp_255)
-        recall_255 = safe_div(self.tp_255, self.tp_255 + self.fn_255)
-        f1_255 = safe_div(2 * precision_255 * recall_255, precision_255 + recall_255)
+        iou = safe_div(
+            self.true_positive,
+            self.true_positive + self.false_positive + self.false_negative,
+        )
+        precision = safe_div(self.true_positive, self.true_positive + self.false_positive)
+        recall = safe_div(self.true_positive, self.true_positive + self.false_negative)
+        f1 = safe_div(2 * precision * recall, precision + recall)
         row: dict[str, float | int | str] = {
             "task": task,
             "category": category or "all",
-            "TP_0": self.tp_0,
-            "FP_0": self.fp_0,
-            "FN_0": self.fn_0,
-            "TP_255": self.tp_255,
-            "FP_255": self.fp_255,
-            "FN_255": self.fn_255,
-            "iou_255": iou_255 * 100,
-            "precision_255": precision_255 * 100,
-            "recall_255": recall_255 * 100,
-            "f1_255": f1_255 * 100,
-            "mIoU": ((iou_0 + iou_255) / 2) * 100,
+            "IoU": iou,
+            "PixP": precision,
+            "PixR": recall,
+            "PixF1": f1,
             "evaluated_images": self.evaluated_images,
             "zero_prediction_images": self.zero_prediction_images,
             "skipped_malformed_polygons": self.skipped_malformed_polygons,
