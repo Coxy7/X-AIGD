@@ -24,7 +24,7 @@ Ground-truth masks are generated in memory. Polygon points are converted with `n
 
 ## Pixel-Level Metrics
 
-Run category-agnostic pixel evaluation:
+Example command to run category-agnostic pixel evaluation:
 
 ```bash
 python metrics/evaluate_pixel.py \
@@ -36,7 +36,7 @@ python metrics/evaluate_pixel.py \
   --output /tmp/xaigd-category-agnostic.csv
 ```
 
-Run fine-grained pixel evaluation:
+Example command to run fine-grained pixel evaluation:
 
 ```bash
 python metrics/evaluate_pixel.py \
@@ -78,7 +78,7 @@ Supported transforms:
 
 Masks are resized with nearest-neighbor interpolation. This keeps binary labels binary. Linear interpolation creates gray boundary pixels between 0 and 255, which changes foreground/background counts after thresholding and can silently drop pixels if exact 0/255 comparisons are used.
 
-Pixel output columns include raw counts and percentages:
+Pixel-level evaluation output columns include raw counts and percentages:
 
 ```text
 task, category, TP_0, FP_0, FN_0, TP_255, FP_255, FN_255,
@@ -88,7 +88,7 @@ evaluated_images, zero_prediction_images, skipped_malformed_polygons
 
 ## Instance-Level Metrics
 
-Run instance-level evaluation:
+Example command to run instance-level evaluation:
 
 ```bash
 python metrics/evaluate_instance.py \
@@ -105,9 +105,11 @@ Prediction CSV schema:
 generator,uid,category,x_min,y_min,x_max,y_max
 ```
 
-Each row is one predicted box. Missing rows for an image/category mean zero predicted instances. Unknown categories are errors. Boxes outside image bounds are counted as invalid unmatched predictions.
+Each row is one predicted bounding box. Missing rows for an image/category mean zero predicted instances. Unknown categories are errors. Boxes outside image bounds are counted as invalid unmatched predictions.
 
-Ground-truth instances are built by unioning category masks, dilating once with a 5x5 rectangular kernel, and converting the result to connected components. A prediction matches a ground-truth instance when:
+For each image and category, ground-truth instances are built by unioning the category masks, dilating the union once with a 5x5 rectangular kernel, and converting the dilated mask to connected components. Each component is then intersected with the original, undilated category mask before box overlap is measured.
+
+A prediction matches a ground-truth instance when:
 
 ```text
 intersection_area / predicted_box_area > overlap_threshold
@@ -116,9 +118,26 @@ intersection_area / predicted_box_area > overlap_threshold
 The default overlap threshold is `0.5` and can be changed with
 `--overlap-threshold`. This is not IoU.
 
-Instance output includes per-generator rows and overall rows. Overall rows use
-`all` in the `generator` column. Both files contain:
+The matching is flag-based, not a one-to-one assignment. The evaluator keeps one matched/unmatched flag per predicted box and one matched/unmatched flag per ground-truth instance. If a predicted box satisfies the overlap rule for a ground-truth instance, both flags are marked as matched. Multiple predicted boxes may match the same ground-truth instance, and one predicted box may match multiple ground-truth instances if it satisfies the overlap rule for each of them.
+
+Counts are accumulated from these flags:
+
+- `TP`: number of matched ground-truth instances.
+- `FP`: number of unmatched predicted boxes. Invalid boxes remain unmatched, so
+  they contribute to `FP`.
+- `FN`: number of unmatched ground-truth instances.
+
+Precision, recall, and F1 are computed from the accumulated `TP`, `FP`, and `FN` counts:
 
 ```text
-generator, category, Precision, Recall, F1, TP, FP, FN, evaluated_images, zero_prediction_images, invalid_prediction_boxes, skipped_malformed_polygons
+Precision = TP / (TP + FP)
+Recall = TP / (TP + FN)
+F1 = 2 * Precision * Recall / (Precision + Recall)
+```
+
+Instance-level evaluation output includes per-generator rows and overall rows. Overall rows use `all` in the `generator` column. Both files contain:
+
+```text
+generator, category, Precision, Recall, F1, TP, FP, FN,
+evaluated_images, zero_prediction_images, invalid_prediction_boxes, skipped_malformed_polygons
 ```
