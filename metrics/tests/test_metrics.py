@@ -267,6 +267,23 @@ class InstanceTests(unittest.TestCase):
         self.assertGreater(edge_specific["FN"], 0)
         self.assertEqual(edge_overall["FN"], edge_specific["FN"])
 
+    def test_invalid_instance_box_is_counted_without_ground_truth_instances(self) -> None:
+        record = make_record(labels=())
+        invalid_box = PredictedBox("gen", "uid", "low-level-edge_shape", -1, 0, 2, 2)
+
+        per_generator_rows, _ = evaluate_instance_predictions(
+            [record],
+            {("gen", "uid", "low-level-edge_shape"): [invalid_box]},
+        )
+
+        edge_specific = [
+            row for row in per_generator_rows if row["category"] == "low-level-edge_shape"
+        ][0]
+        self.assertEqual(edge_specific["invalid_prediction_boxes"], 1)
+        self.assertEqual(edge_specific["FP"], 1)
+        self.assertEqual(edge_specific["FN"], 0)
+        self.assertEqual(edge_specific["zero_prediction_images"], 0)
+
     def test_instance_metric_outputs_threshold_named_columns(self) -> None:
         record = make_record(
             labels=(

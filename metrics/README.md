@@ -53,7 +53,7 @@ The attributes `generator`, `uid`, `width`, `height`, and `labels` are read from
 ### Ground-Truth Masks
 
 Ground-truth masks are generated in memory during evaluation:
-1. Polygon points are converted to integers using `np.array(points, dtype=np.int32)`. Fractional coordinates are truncated.
+1. Polygon points are discretized to valid pixel indices by converting them with `np.array(points, dtype=np.int32)`, which truncates fractional coordinates, and then clamping boundary coordinates such as `x == width` or `y == height` to the last valid pixel index.
 2. The polygons are rasterized with `cv2.fillPoly(..., 255)`.
 3. Polygons with fewer than three points are treated as annotation errors.
 
@@ -95,7 +95,7 @@ python metrics/evaluate_pixel.py \
 
 ### Prediction Layout Requirements
 
-Missing directories or empty directories are interpreted as an all-zero prediction. Prediction masks with unexpected dimensions will result in errors.
+Missing directories, empty directories, and directories whose PNG masks union to an all-zero mask are interpreted as zero predictions. Prediction masks with unexpected dimensions will result in errors.
 
 **Category-Agnostic Layout:**
 
@@ -118,7 +118,7 @@ prediction_root/
 
 ### Image Preprocessing and Mask Handling
 
-All PNG masks in an image directory are binarized using `mask > 127` and merged with a pixel-wise OR operation.
+All PNG masks in an image directory are binarized using `mask > 127` by default and merged with a pixel-wise OR operation. Change the binarization threshold with `--prediction-threshold`.
 
 **Mask Resizing Options:**
 

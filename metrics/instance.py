@@ -161,6 +161,10 @@ def evaluate_instance_record(
     gt_matched = [0 for _ in range(1, num_labels)]
 
     for pred_idx, pred_box in enumerate(pred_boxes):
+        pred_bounds = box_to_int_bounds(pred_box, record.width, record.height)
+        if pred_bounds is None:
+            counts.invalid_prediction_boxes += 1
+            continue
         for component_label in range(1, num_labels):
             component_idx = component_label - 1
             gt_instance_mask = (labels_im == component_label).astype(np.uint8) * 255
@@ -171,13 +175,11 @@ def evaluate_instance_record(
                 record.width,
                 record.height,
                 overlap_threshold=overlap_threshold,
+                pred_bounds=pred_bounds,
             )
-            if match_result is True:
+            if match_result:
                 pred_matched[pred_idx] = 1
                 gt_matched[component_idx] = 1
-            elif match_result is None:
-                counts.invalid_prediction_boxes += 1
-                break
 
     counts.true_positive = gt_matched.count(1)
     counts.false_positive = pred_matched.count(0)
@@ -192,29 +194,40 @@ def match_box_to_mask(
     image_height: int,
     *,
     overlap_threshold: float,
+    pred_bounds: tuple[int, int, int, int] | None = None,
 ) -> bool | None:
+    if pred_bounds is None:
+        pred_bounds = box_to_int_bounds(pred_box, image_width, image_height)
+    if pred_bounds is None:
+        return None
+
+    x_min, y_min, x_max, y_max = pred_bounds
+    pred_mask = np.zeros((image_height, image_width), dtype=np.uint8)
+    pred_mask[y_min:y_max, x_min:x_max] = 255
+    pred_area = (x_max - x_min) * (y_max - y_min)
+    intersection = cv2.bitwise_and(gt_instance_mask, pred_mask)
+    intersection_area = int(np.count_nonzero(intersection))
+    return (intersection_area / pred_area) > overlap_threshold
+
+
+def box_to_int_bounds(
+    pred_box: PredictedBox,
+    image_width: int,
+    image_height: int,
+) -> tuple[int, int, int, int] | None:
     if not (
         0 <= pred_box.x_min < pred_box.x_max <= image_width
         and 0 <= pred_box.y_min < pred_box.y_max <= image_height
     ):
         return None
 
-    x_min = min(int(pred_box.x_min), image_width)
-    x_max = min(int(pred_box.x_max), image_width)
-    y_min = min(int(pred_box.y_min), image_height)
-    y_max = min(int(pred_box.y_max), image_height)
+    x_min = int(pred_box.x_min)
+    x_max = int(pred_box.x_max)
+    y_min = int(pred_box.y_min)
+    y_max = int(pred_box.y_max)
     if not (0 <= x_min < x_max <= image_width and 0 <= y_min < y_max <= image_height):
         return None
-
-    pred_mask = np.zeros((image_height, image_width), dtype=np.uint8)
-    pred_mask[y_min:y_max, x_min:x_max] = 255
-    pred_area = int(np.count_nonzero(pred_mask))
-    if pred_area == 0:
-        return None
-
-    intersection = cv2.bitwise_and(gt_instance_mask, pred_mask)
-    intersection_area = int(np.count_nonzero(intersection))
-    return (intersection_area / pred_area) > overlap_threshold
+    return x_min, y_min, x_max, y_max
 
 
 def merge_instance_counts(target: InstanceCounts, source: InstanceCounts) -> None:
